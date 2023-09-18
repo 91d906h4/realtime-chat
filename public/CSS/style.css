@@ -1,0 +1,34 @@
+body { margin: 0; padding-bottom: 3rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+#roominfo { padding: 0.25rem; position: fixed; top: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
+#form { background: #dadada; padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
+#controlbar { background: #dadada; padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; margin-bottom: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
+#input { border: none; padding: 0 1rem; flex-grow: 1; border-radius: 2rem; margin: 0.25rem; }
+#input:focus { outline: none; }
+#form > button { background: #333; border: none; padding: 0 1rem; margin: 0.25rem; border-radius: 3px; outline: none; color: #fff; }
+
+#messages { list-style-type: none; margin: 0; padding: 0; margin-top: 3rem; margin-bottom: 0rem; word-break: break-all; }
+#messages > li { padding: 0.5rem 1rem; }
+#messages > li:nth-child(odd) { background: #efefef; }
+
+.hiddenmsg { background-color: black; }
+.hiddenmsg:hover { background-color: transparent; }
+.blink { animation: blinker 1s step-start infinite; }
+.codetext { background-color: #dadada; }
+
+.msginfo { font-size: 1.5px; }
+
+@media only screen and (max-width: 1000px) {
+    html, input, button {
+        font-size: 45px; 
+    }
+    .msginfo {
+        font-size: 12px; 
+    }
+}
+
+@keyframes blinker {
+    50% {
+      opacity: 0;
+    }
+}

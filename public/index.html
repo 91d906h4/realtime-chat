@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Real Time Chat</title>
+        <script src="./JavaScript/soloalert.js"></script>
+        <script src="./JavaScript/socket.io.js"></script>
+        <link rel="stylesheet" href="./CSS/style.css">
+    </head>
+    <body>
+        <div id="roominfo">[] Online users : </div>
+        <ul id="messages">
+            <li style="text-align: center;">No more message.</li>
+        </ul>
+        <form id="form" action="">
+            <!-- <div id="controlbar"></div> -->
+            <input id="input" autocomplete="off" /><button>Send</button>
+        </form>
+        <script>
+            var socket = io();
+            var sbt = 0;
+
+            var messages = document.getElementById('messages');
+            var form = document.getElementById('form');
+            var input = document.getElementById('input');
+            var info = document.getElementById('roominfo');
+
+            function gettime(){const date = new Date(); const nowtime = date.getFullYear() + "/" + (date.getMonth() + 1) + "/" + date.getDate() + " " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds(); return nowtime;}
+            function sanitaize(str){return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');}
+            function strexist(str, par){return str.substring(str.indexOf(par) + 1).includes(par);}
+            function getstr(str, par){return str.slice(str.indexOf(par) + 2, str.lastIndexOf(par));}
+            function ifurl(str){return str.match(/(http(s)?:\/\/.)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/g);};
+
+            window.onscroll = function(ev){if((window.innerHeight + window.scrollY) >= document.body.offsetHeight){sbt = 1;} else{sbt = 0;}};
+            //window.onkeydown = function(ev){document.getElementsByClassName("SoloAlert-prompt-input")[0].focus();};
+
+            //Join room
+            SoloAlert.prompt({
+                title:"Room ID:",
+                type: "string",
+                textLimit: 30
+            }).then(id => {
+                if(id && id.length <= 31){
+                    socket.emit('ROOM_ID', id);
+                    //User login
+                    SoloAlert.prompt({
+                        title:"Username:",
+                        type: "string",
+                        textLimit: 100
+                    }).then(name => {
+                        if(name && name.length <= 101){
+                            socket.emit('USER_JOIN', name, gettime());
+                        }
+                        else{
+                            SoloAlert.alert({
+                                title:"Error",
+                                body:"Username cannot be empty, or it's too long.",
+                                icon: "error"
+                            }).then(k => {
+                                location.reload();
+                            });
+                        }
+                    });
+                }
+                else{
+                    SoloAlert.alert({
+                        title:"Error",
+                        body:"Room ID cannot be empty, or it's too long.",
+                        icon: "error"
+                    }).then(k => {
+                        location.reload();
+                    });
+                }
+            });
+
+            //Load message
+            socket.on('LOAD_MESSAGE', function(msg) {
+                while(messages.firstChild){
+                    messages.removeChild(messages.firstChild);
+                }
+                msg.forEach(element => {
+                    var item = document.createElement('li');
+                    var strn = element.message;
+                    var timen = element.time;
+                    var usern = element.user;
+
+                    function setstr(str1, par, tag1, tag2){
+                        var str2 = getstr(str1, par);
+                        return usern + " <span class='msginfo'>" + timen + "</span><br>" + str1.substring(0, str1.indexOf(par)) + tag1 + str2 + tag2 + str1.substring(str1.lastIndexOf(par) + 2, str1.length);
+                    }
+
+                    if(element.status == "USER_JOIN"){
+                        item.innerHTML = usern + " joined room [" + element.remark + "] <span class='msginfo'>" + timen + "</span>";
+                        item.style.color = "blue";
+                    }
+                    else if(element.status == "USER_EXIT"){
+                        item.innerHTML = usern + " left room [" + element.remark + "] <span class='msginfo'>" + timen + "</span>";
+                        item.style.color = "red";
+                    }
+                    //Text effect
+                    else if(strexist(strn, "``")){item.innerHTML = setstr(strn, "``", "<span class='codetext'>", "</span>");}
+                    else if(strexist(strn, "~~")){item.innerHTML = setstr(strn, "~~", "<s>", "</s>");}
+                    else if(strexist(strn, "||")){item.innerHTML = setstr(strn, "||", "<span class='hiddenmsg'>", "</span>");}
+                    else if(strexist(strn, "**")){item.innerHTML = setstr(strn, "**", "<strong>", "</strong>");}
+                    else if(strexist(strn, "//")){item.innerHTML = setstr(strn, "//", "<i>", "</i>");}
+                    else if(strexist(strn, "##")){item.innerHTML = setstr(strn, "##", "<span class='blink'>", "</span>");}
+                    else if(ifurl(strn)){item.innerHTML = usern + " <span class='msginfo'>" + timen + "</span><br>" + "<a href='" + strn + "' target='_blank'>" + strn + "</a>";}
+                    else{item.innerHTML = usern + " <span class='msginfo'>" + timen + "</span><br>" + strn;}
+
+                    messages.appendChild(item);
+                    window.scrollTo(0, document.body.scrollHeight);
+                });
+            });
+
+            //Client send message
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                var str = input.value.trim()
+                str = sanitaize(str);
+                if(str && str.length <= 256 && str != "!Webhook"){
+                    socket.emit('MESSAGE_TO_SERVER', str, gettime());
+                }
+                else if(str == "!Webhook"){
+                    var item = document.createElement('li');
+                    item.innerHTML = "<a href='http://" + location.host.substring(0, location.host.length-6) + ":10014' target='_blank'>Start using Webhook!</a>";
+                    item.style.color = "blue";
+                    messages.appendChild(item);
+                    window.scrollTo(0, document.body.scrollHeight);
+                }
+                else{
+                    if(str){
+                        var item = document.createElement('li');
+                        item.innerHTML = "ERROR: Message cannot be longer than 256 characters.";
+                        item.style.color = "red";
+                        messages.appendChild(item);
+                        window.scrollTo(0, document.body.scrollHeight);
+                    }
+                }
+                window.scrollTo(0, document.body.scrollHeight);
+                input.value = '';
+            });
+
+            //Client recive message
+            socket.on('MESSAGE_TO_CLIENT', function(user, msg, tag) {
+                var item = document.createElement('li');
+
+                function setstr(str1, par, tag1, tag2){
+                    var str2 = getstr(str1, par);
+                    return str1.substring(0, str1.indexOf(par)) + tag1 + str2 + tag2 + str1.substring(str1.lastIndexOf(par) + 2, str1.length);
+                }
+
+                //Text effect
+                if(strexist(msg, "``")){msg = setstr(msg, "``", "<span class='codetext'>", "</span>");}
+                else if(strexist(msg, "~~")){msg = setstr(msg, "~~", "<s>", "</s>");}
+                else if(strexist(msg, "||")){msg = setstr(msg, "||", "<span class='hiddenmsg'>", "</span>");}
+                else if(strexist(msg, "**")){msg = setstr(msg, "**", "<strong>", "</strong>");}
+                else if(strexist(msg, "//")){msg = setstr(msg, "//", "<i>", "</i>");}
+                else if(strexist(msg, "##")){msg = setstr(msg, "##", "<span class='blink'>", "</span>");}
+                else if(ifurl(msg)){msg = "<a href='" + msg + "' target='_blank'>" + msg + "</a>";}
+
+                item.innerHTML = user + " #" + tag + " <span class='msginfo'>" + gettime() + "</span><br>" + msg;
+                messages.appendChild(item);
+                if(sbt){
+                    window.scrollTo(0, document.body.scrollHeight);
+                };
+            });
+
+            //User join
+            socket.on('USER_JOIN_MESSAGE', function(room, msg, tag) {
+                if(name != msg){
+                    var item = document.createElement('li');
+                    item.innerHTML = "" + msg + " #" + tag + " joined room [" + room + "] <span class='msginfo'>" + gettime() + "</span>";
+                    item.style.color = "blue";
+                    messages.appendChild(item);
+                    if(sbt) window.scrollTo(0, document.body.scrollHeight);
+                }
+            });
+            socket.on('USER_UPDATE', function(room, msg) {
+                info.innerHTML = "[" + room + "] Online users : " + msg;
+            });
+
+            //User exit
+            socket.on('USER_EXIT_MESSAGE', function(room, msg, tag) {
+                var item = document.createElement('li');
+                item.innerHTML = "" + msg +  " #" + tag + " left room [" + room + "] <span class='msginfo'>" + gettime() + "</span>";
+                item.style.color = "red";
+                messages.appendChild(item);
+                if(sbt) window.scrollTo(0, document.body.scrollHeight);
+            });
+        </script>
+    </body>
+</html>
